@@ -8,6 +8,7 @@ class ProveedoresView(tk.Frame):
     def __init__(self, parent):
         super().__init__(parent, bg="white")
         self.parent = parent
+        self.proveedor_editando = None  # ID del proveedor en edición
         self.crear_widgets()
         self.cargar_tabla()
 
@@ -17,14 +18,14 @@ class ProveedoresView(tk.Frame):
         formulario = tk.Frame(self, bg="white")
         formulario.pack(pady=10)
 
-        campos = ["Nombre", "RUT", "Dirección", "Teléfono"]
+        campos = ["Nombre", "RUT", "Dirección", "Teléfono", "Razón Social", "Correo", "Comuna"]
         self.entradas = {}
 
         for i, campo in enumerate(campos):
             tk.Label(formulario, text=campo + ":", bg="white").grid(row=i, column=0, sticky="e", pady=5, padx=5)
             entrada = ttk.Entry(formulario, width=30)
             entrada.grid(row=i, column=1, pady=5, padx=5)
-            self.entradas[campo.lower()] = entrada
+            self.entradas[campo.lower().replace(" ", "_")] = entrada
 
         botones = tk.Frame(self, bg="white")
         botones.pack(pady=10)
@@ -33,21 +34,24 @@ class ProveedoresView(tk.Frame):
             ("Guardar", self.guardar_proveedor),
             ("Buscar", self.buscar_proveedor),
             ("Eliminar", self.eliminar_proveedor),
+            ("Editar", self.editar_proveedor),
             ("Recargar", self.cargar_tabla)
         ]
 
         for texto, accion in acciones:
-            ttk.Button(botones, text=texto, command=accion, width=12).pack(side="left", padx=10)
+            ttk.Button(botones, text=texto, command=accion, width=12).pack(side="left", padx=5)
 
-        self.tabla = ttk.Treeview(self, columns=("id", "nombre", "rut", "direccion", "telefono"), show="headings")
-        for col in self.tabla["columns"]:
-            self.tabla.heading(col, text=col.capitalize())
-            self.tabla.column(col, width=130)
+        columnas = ("id", "nombre", "rut", "direccion", "telefono", "razon_social", "correo", "comuna")
+        self.tabla = ttk.Treeview(self, columns=columnas, show="headings")
+        for col in columnas:
+            self.tabla.heading(col, text=col.replace("_", " ").capitalize())
+            self.tabla.column(col, width=120)
         self.tabla.pack(pady=10, fill="x")
 
     def limpiar_entradas(self):
         for entrada in self.entradas.values():
             entrada.delete(0, tk.END)
+        self.proveedor_editando = None
 
     def cargar_tabla(self, datos=None):
         for row in self.tabla.get_children():
@@ -58,18 +62,22 @@ class ProveedoresView(tk.Frame):
 
     def guardar_proveedor(self):
         try:
-            datos = {k: v.get() for k, v in self.entradas.items()}
-            Proveedor.crear(
-                datos["nombre"],
-                datos["rut"],
-                datos["dirección"],
-                datos["teléfono"]
-            )
-            self.cargar_tabla()
+            datos = {k: v.get().strip() for k, v in self.entradas.items()}
+            if not all(datos.values()):
+                raise ValueError("Todos los campos son obligatorios.")
+
+            if self.proveedor_editando:
+                Proveedor.editar(self.proveedor_editando, *datos.values())
+                mensaje = "Proveedor actualizado correctamente."
+            else:
+                Proveedor.crear(*datos.values())
+                mensaje = "Proveedor creado correctamente."
+
             self.limpiar_entradas()
-            messagebox.showinfo("Éxito", "Proveedor guardado correctamente.")
+            self.cargar_tabla()
+            messagebox.showinfo("Éxito", mensaje)
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudo guardar: {e}")
+            messagebox.showerror("Error", f"Ocurrió un error: {e}")
 
     def buscar_proveedor(self):
         nombre = self.entradas["nombre"].get()
@@ -85,4 +93,17 @@ class ProveedoresView(tk.Frame):
         proveedor_id = item["values"][0]
         Proveedor.eliminar(proveedor_id)
         self.cargar_tabla()
-        messagebox.showinfo("Eliminado", "Proveedor eliminado.")
+        messagebox.showinfo("Eliminado", "Proveedor eliminado correctamente.")
+
+    def editar_proveedor(self):
+        seleccionado = self.tabla.selection()
+        if not seleccionado:
+            messagebox.showwarning("Atención", "Selecciona un proveedor para editar.")
+            return
+        item = self.tabla.item(seleccionado[0])
+        datos = item["values"]
+        keys = list(self.entradas.keys())
+        for i in range(1, len(keys)+1):
+            self.entradas[keys[i-1]].delete(0, tk.END)
+            self.entradas[keys[i-1]].insert(0, datos[i])
+        self.proveedor_editando = datos[0]  # Guardamos ID

@@ -4,13 +4,26 @@ from app.db.database import get_connection
 
 class Proveedor:
     @staticmethod
-    def crear(nombre, rut, direccion, telefono):
+    def crear(nombre, rut, direccion, telefono, razon_social, correo, comuna):
         conn = get_connection()
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO proveedores (nombre, rut, direccion, telefono)
-            VALUES (?, ?, ?, ?)
-        """, (nombre, rut, direccion, telefono))
+            INSERT INTO proveedores (nombre, rut, direccion, telefono, razon_social, correo, comuna)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (nombre, rut, direccion, telefono, razon_social, correo, comuna))
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def editar(id_proveedor, nombre, rut, direccion, telefono, razon_social, correo, comuna):
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE proveedores SET
+                nombre = ?, rut = ?, direccion = ?, telefono = ?,
+                razon_social = ?, correo = ?, comuna = ?
+            WHERE id = ?
+        """, (nombre, rut, direccion, telefono, razon_social, correo, comuna, id_proveedor))
         conn.commit()
         conn.close()
 

@@ -1,21 +1,16 @@
-# control_negocio/app/db/database.py
-
 import sqlite3
 from pathlib import Path
 
-# Ruta absoluta a la base de datos SQLite
 DB_PATH = Path(__file__).resolve().parent.parent / "data" / "negocio.db"
 
 def get_connection():
-    """Devuelve una conexión a la base de datos."""
     return sqlite3.connect(DB_PATH)
 
 def init_db():
-    """Inicializa todas las tablas necesarias en la base de datos si no existen."""
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Tabla de productos
+    # Productos
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,11 +18,16 @@ def init_db():
             categoria TEXT,
             precio_compra REAL,
             precio_venta REAL,
-            stock INTEGER DEFAULT 0
+            stock INTEGER DEFAULT 0,
+            codigo_interno TEXT,
+            codigo_externo TEXT,
+            iva REAL,
+            ubicacion TEXT,
+            fecha_vencimiento TEXT
         )
     """)
 
-    # Tabla de clientes
+    # Clientes
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS clientes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +38,7 @@ def init_db():
         )
     """)
 
-    # Tabla de proveedores
+    # Proveedores
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS proveedores (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,47 +49,58 @@ def init_db():
         )
     """)
 
-    # Tabla de compras
+    # Compras
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS compras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             proveedor TEXT,
             producto TEXT,
             cantidad INTEGER,
-            precio_unitario REAL
+            precio_unitario REAL,
+            iva REAL,
+            total REAL
         )
     """)
 
-    # Tabla de ventas
+    # Órdenes de Venta
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS ventas (
+        CREATE TABLE IF NOT EXISTS ordenes_venta (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            cliente TEXT,
-            producto TEXT,
-            cantidad INTEGER,
-            precio_unitario REAL
+            cliente TEXT NOT NULL,
+            producto TEXT NOT NULL,
+            cantidad INTEGER NOT NULL,
+            precio_unitario REAL NOT NULL,
+            iva REAL NOT NULL,
+            total REAL NOT NULL,
+            fecha TEXT NOT NULL
         )
     """)
 
-    # Tabla de ingresos
+    # Ingresos
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ingresos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT,
             descripcion TEXT,
-            monto REAL
+            monto REAL,
+            estado TEXT,
+            fecha TEXT
         )
     """)
 
-    # Tabla de gastos
+    # Gastos
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS gastos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT,
             descripcion TEXT,
-            monto REAL
+            monto REAL,
+            estado TEXT,
+            fecha TEXT
         )
     """)
 
-    # ✅ Tabla de facturas (integración con Finanzas)
+    # Facturas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS facturas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,16 +108,31 @@ def init_db():
             proveedor TEXT,
             monto REAL,
             estado TEXT,
+            fecha TEXT,
+            tipo TEXT -- 'cliente' o 'proveedor'
+        )
+    """)
+
+    # Categorías
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS categorias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL UNIQUE
+        )
+    """)
+
+    # Movimientos de Inventario
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS movimientos_inventario (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo_producto TEXT,
+            tipo TEXT,              -- entrada o salida
+            cantidad INTEGER,
+            ubicacion TEXT,
+            metodo TEXT,            -- manual, escaner, orden_compra, etc.
             fecha TEXT
         )
     """)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS categorias (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT NOT NULL UNIQUE
-    )
-    """)
-
 
     conn.commit()
     conn.close()

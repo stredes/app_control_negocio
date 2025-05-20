@@ -14,6 +14,7 @@ from app.ui.consulta_ingresos_view import ConsultaIngresosView
 from app.ui.gastos_view import GastosView
 from app.ui.estado_resultados_view import EstadoResultadosView
 from app.ui.categorias_view import CategoriasView
+from app.ui.ingreso_inventario_view import IngresoInventarioView  # ✅ Nuevo módulo
 
 class MainWindow(tk.Tk):
     def __init__(self):
@@ -36,7 +37,8 @@ class MainWindow(tk.Tk):
             "🧾 Consulta de Ingresos",
             "📉 Gastos",
             "📈 Estado de Resultados",
-            "🏷️ Categorías"
+            "🏷️ Categorías",
+            "📥 Ingreso de Productos"  # ✅ Nueva opción en el menú
         ]
 
         # ✅ Mapeo de vistas (sin emojis)
@@ -53,7 +55,8 @@ class MainWindow(tk.Tk):
             "Consulta de Ingresos": ConsultaIngresosView,
             "Gastos": GastosView,
             "Estado de Resultados": EstadoResultadosView,
-            "Categorías": CategoriasView
+            "Categorías": CategoriasView,
+            "Ingreso de Productos": IngresoInventarioView  # ✅ Mapeo nuevo
         }
 
         self.crear_menu_lateral()
