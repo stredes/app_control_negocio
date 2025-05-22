@@ -70,3 +70,18 @@ class Producto:
         cur.execute("DELETE FROM productos WHERE id = ?", (id_producto,))
         conn.commit()
         conn.close()
+
+    @staticmethod
+    def editar(id_producto, nombre, categoria, precio_compra, precio_venta, stock,
+               codigo_interno, codigo_externo, iva, ubicacion, fecha_vencimiento):
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE productos SET
+                nombre = ?, categoria = ?, precio_compra = ?, precio_venta = ?, stock = ?,
+                codigo_interno = ?, codigo_externo = ?, iva = ?, ubicacion = ?, fecha_vencimiento = ?
+            WHERE id = ?
+        """, (nombre, categoria, precio_compra, precio_venta, stock,
+              codigo_interno, codigo_externo, iva, ubicacion, fecha_vencimiento, id_producto))
+        conn.commit()
+        conn.close()

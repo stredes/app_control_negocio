@@ -1,8 +1,7 @@
-# control_negocio/app/ui/productos_view.py
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 from app.models.producto import Producto
+import unicodedata
 
 class ProductosView(tk.Frame):
     def __init__(self, parent):
@@ -11,6 +10,12 @@ class ProductosView(tk.Frame):
         self.producto_seleccionado_id = None
         self.crear_widgets()
         self.cargar_tabla()
+
+    def limpiar_clave(self, texto):
+        return ''.join(
+            c for c in unicodedata.normalize('NFD', texto.lower())
+            if c.isalnum() or c == '_'
+        ).replace(" ", "_")
 
     def crear_widgets(self):
         tk.Label(self, text="🛠 Creación de Productos", font=("Arial", 16, "bold"), bg="white").pack(pady=10)
@@ -28,7 +33,8 @@ class ProductosView(tk.Frame):
             tk.Label(formulario, text=campo + ":", bg="white").grid(row=i, column=0, sticky="e", pady=5, padx=5)
             entrada = ttk.Entry(formulario, width=30)
             entrada.grid(row=i, column=1, pady=5, padx=5)
-            self.entradas[campo.lower().replace(" ", "_")] = entrada
+            clave = self.limpiar_clave(campo)
+            self.entradas[clave] = entrada
 
         botones = tk.Frame(self, bg="white")
         botones.pack(pady=15)
@@ -75,7 +81,7 @@ class ProductosView(tk.Frame):
             datos = {k: v.get() for k, v in self.entradas.items()}
             Producto.crear(
                 datos["nombre"],
-                datos["categoría"],
+                datos["categoria"],
                 float(datos["precio_compra"]),
                 float(datos["precio_venta"]),
                 int(datos["stock"]),
@@ -118,7 +124,7 @@ class ProductosView(tk.Frame):
         keys = list(self.entradas.keys())
         for i, k in enumerate(keys):
             self.entradas[k].delete(0, tk.END)
-            self.entradas[k].insert(0, valores[i + 1])  # +1 para ignorar el id
+            self.entradas[k].insert(0, valores[i + 1])  # +1 porque el primer valor es ID
 
     def editar_producto(self):
         if not self.producto_seleccionado_id:
@@ -135,7 +141,7 @@ class ProductosView(tk.Frame):
                     codigo_interno = ?, codigo_externo = ?, iva = ?, ubicacion = ?, fecha_vencimiento = ?
                 WHERE id = ?
             """, (
-                datos["nombre"], datos["categoría"], float(datos["precio_compra"]),
+                datos["nombre"], datos["categoria"], float(datos["precio_compra"]),
                 float(datos["precio_venta"]), int(datos["stock"]),
                 datos["codigo_interno"], datos["codigo_externo"], float(datos["iva"]),
                 datos["ubicacion"], datos["fecha_vencimiento"], self.producto_seleccionado_id
