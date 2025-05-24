@@ -1,7 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from app.models.producto import Producto
 import unicodedata
+from app.models.producto import Producto
+from app.models.categoria import Categoria
 
 class ProductosView(tk.Frame):
     def __init__(self, parent):
@@ -9,16 +10,17 @@ class ProductosView(tk.Frame):
         self.parent = parent
         self.producto_seleccionado_id = None
         self.crear_widgets()
+        self.cargar_categorias()   # Carga categorías en el Combobox
         self.cargar_tabla()
 
     def limpiar_clave(self, texto):
-        return ''.join(
-            c for c in unicodedata.normalize('NFD', texto.lower())
-            if c.isalnum() or c == '_'
-        ).replace(" ", "_")
+        txt = unicodedata.normalize('NFD', texto).lower().replace(" ", "_")
+        return ''.join(c for c in txt if c.isalnum() or c == "_")
 
     def crear_widgets(self):
-        tk.Label(self, text="🛠 Creación de Productos", font=("Arial", 16, "bold"), bg="white").pack(pady=10)
+        tk.Label(self, text="🛠 Creación de Productos",
+                 font=("Arial", 16, "bold"), bg="white")\
+          .pack(pady=10)
 
         formulario = tk.Frame(self, bg="white")
         formulario.pack(pady=10)
@@ -30,15 +32,23 @@ class ProductosView(tk.Frame):
         self.entradas = {}
 
         for i, campo in enumerate(campos):
-            tk.Label(formulario, text=campo + ":", bg="white").grid(row=i, column=0, sticky="e", pady=5, padx=5)
-            entrada = ttk.Entry(formulario, width=30)
-            entrada.grid(row=i, column=1, pady=5, padx=5)
             clave = self.limpiar_clave(campo)
-            self.entradas[clave] = entrada
+            tk.Label(formulario, text=campo + ":", bg="white")\
+              .grid(row=i, column=0, sticky="e", padx=5, pady=3)
 
-        botones = tk.Frame(self, bg="white")
-        botones.pack(pady=15)
+            if campo == "Categoría":
+                # Combobox para categorías
+                self.cmb_categoria = ttk.Combobox(
+                    formulario, width=30, state="readonly")
+                self.cmb_categoria.grid(row=i, column=1, padx=5, pady=3)
+                self.entradas["categoria"] = self.cmb_categoria
+            else:
+                entrada = ttk.Entry(formulario, width=30)
+                entrada.grid(row=i, column=1, padx=5, pady=3)
+                self.entradas[clave] = entrada
 
+        btns = tk.Frame(self, bg="white")
+        btns.pack(pady=10)
         acciones = [
             ("Guardar", self.guardar_producto),
             ("Editar", self.editar_producto),
@@ -46,54 +56,60 @@ class ProductosView(tk.Frame):
             ("Eliminar", self.eliminar_producto),
             ("Recargar", self.cargar_tabla)
         ]
+        for text, cmd in acciones:
+            ttk.Button(btns, text=text, command=cmd, width=12)\
+              .pack(side="left", padx=5)
 
-        for texto, comando in acciones:
-            ttk.Button(botones, text=texto, command=comando, width=12).pack(side="left", padx=5)
-
-        self.tabla = ttk.Treeview(
-            self,
-            columns=(
-                "id", "nombre", "categoria", "precio_compra", "precio_venta",
-                "stock", "codigo_interno", "codigo_externo", "iva", "ubicacion", "fecha_vencimiento"
-            ),
-            show="headings"
+        cols = (
+            "id", "nombre", "categoria", "precio_compra", "precio_venta",
+            "stock", "codigo_interno", "codigo_externo", "iva", "ubicacion", "fecha_vencimiento"
         )
-        for col in self.tabla["columns"]:
-            self.tabla.heading(col, text=col.replace("_", " ").capitalize())
-            self.tabla.column(col, width=110)
+        self.tabla = ttk.Treeview(self, columns=cols, show="headings")
+        for c in cols:
+            self.tabla.heading(c, text=c.replace("_", " ").capitalize())
+            self.tabla.column(c, width=100, anchor="center")
         self.tabla.bind("<<TreeviewSelect>>", self.seleccionar_producto)
-        self.tabla.pack(pady=10, fill="x")
+        self.tabla.pack(fill="both", expand=True, padx=10, pady=10)
+
+    def cargar_categorias(self):
+        """
+        Pobla el Combobox de categorías con los nombres existentes.
+        """
+        datos = Categoria.listar()  # devuelve lista de (id, nombre)
+        nombres = [nombre for (_id, nombre) in datos]
+        self.cmb_categoria["values"] = nombres
 
     def limpiar_entradas(self):
-        for entrada in self.entradas.values():
-            entrada.delete(0, tk.END)
+        for w in self.entradas.values():
+            w.delete(0, tk.END)
         self.producto_seleccionado_id = None
 
     def cargar_tabla(self, datos=None):
         for row in self.tabla.get_children():
             self.tabla.delete(row)
-        productos = datos if datos else Producto.listar_todos()
-        for prod in productos:
-            self.tabla.insert("", tk.END, values=prod)
+        filas = datos if datos is not None else Producto.listar_todos()
+        for f in filas:
+            self.tabla.insert("", tk.END, values=f)
 
     def guardar_producto(self):
         try:
-            datos = {k: v.get() for k, v in self.entradas.items()}
+            d = {k: v.get() for k, v in self.entradas.items()}
             Producto.crear(
-                datos["nombre"],
-                datos["categoria"],
-                float(datos["precio_compra"]),
-                float(datos["precio_venta"]),
-                int(datos["stock"]),
-                datos["codigo_interno"],
-                datos["codigo_externo"],
-                float(datos["iva"]),
-                datos["ubicacion"],
-                datos["fecha_vencimiento"]
+                d["nombre"],
+                d["categoria"],
+                float(d["precio_compra"]),
+                float(d["precio_venta"]),
+                int(d["stock"]),
+                d["codigo_interno"],
+                d["codigo_externo"],
+                float(d["iva"]),
+                d["ubicacion"],
+                d["fecha_vencimiento"]
             )
-            self.cargar_tabla()
-            self.limpiar_entradas()
             messagebox.showinfo("✅ Éxito", "Producto guardado correctamente.")
+            self.limpiar_entradas()
+            self.cargar_categorias()
+            self.cargar_tabla()
         except Exception as e:
             messagebox.showerror("❌ Error", f"No se pudo guardar: {e}")
 
@@ -103,53 +119,50 @@ class ProductosView(tk.Frame):
         self.cargar_tabla(resultados)
 
     def eliminar_producto(self):
-        seleccionado = self.tabla.selection()
-        if not seleccionado:
+        sel = self.tabla.selection()
+        if not sel:
             messagebox.showwarning("⚠️ Atención", "Selecciona un producto para eliminar.")
             return
-        item = self.tabla.item(seleccionado[0])
-        producto_id = item["values"][0]
-        Producto.eliminar(producto_id)
-        self.cargar_tabla()
-        self.limpiar_entradas()
+        pid = self.tabla.item(sel[0])["values"][0]
+        Producto.eliminar(pid)
         messagebox.showinfo("🗑️ Eliminado", "Producto eliminado.")
+        self.limpiar_entradas()
+        self.cargar_tabla()
 
     def seleccionar_producto(self, event):
-        seleccionado = self.tabla.selection()
-        if not seleccionado:
+        sel = self.tabla.selection()
+        if not sel:
             return
-        item = self.tabla.item(seleccionado[0])
-        valores = item["values"]
-        self.producto_seleccionado_id = valores[0]
+        vals = self.tabla.item(sel[0])["values"]
+        self.producto_seleccionado_id = vals[0]
+        # Cargar valores en formulario
         keys = list(self.entradas.keys())
-        for i, k in enumerate(keys):
-            self.entradas[k].delete(0, tk.END)
-            self.entradas[k].insert(0, valores[i + 1])  # +1 porque el primer valor es ID
+        for i, clave in enumerate(keys):
+            self.entradas[clave].delete(0, tk.END)
+            self.entradas[clave].insert(0, vals[i+1])
 
     def editar_producto(self):
         if not self.producto_seleccionado_id:
-            messagebox.showwarning("⚠️ Atención", "Debes seleccionar un producto para editar.")
+            messagebox.showwarning("⚠️ Atención", "Selecciona un producto para editar.")
             return
-
         try:
-            datos = {k: v.get() for k, v in self.entradas.items()}
-            conn = Producto.get_connection()
-            cur = conn.cursor()
-            cur.execute("""
-                UPDATE productos SET
-                    nombre = ?, categoria = ?, precio_compra = ?, precio_venta = ?, stock = ?,
-                    codigo_interno = ?, codigo_externo = ?, iva = ?, ubicacion = ?, fecha_vencimiento = ?
-                WHERE id = ?
-            """, (
-                datos["nombre"], datos["categoria"], float(datos["precio_compra"]),
-                float(datos["precio_venta"]), int(datos["stock"]),
-                datos["codigo_interno"], datos["codigo_externo"], float(datos["iva"]),
-                datos["ubicacion"], datos["fecha_vencimiento"], self.producto_seleccionado_id
-            ))
-            conn.commit()
-            conn.close()
-            self.cargar_tabla()
-            self.limpiar_entradas()
+            d = {k: v.get() for k, v in self.entradas.items()}
+            Producto.editar(
+                self.producto_seleccionado_id,
+                d["nombre"],
+                d["categoria"],
+                float(d["precio_compra"]),
+                float(d["precio_venta"]),
+                int(d["stock"]),
+                d["codigo_interno"],
+                d["codigo_externo"],
+                float(d["iva"]),
+                d["ubicacion"],
+                d["fecha_vencimiento"]
+            )
             messagebox.showinfo("✏️ Editado", "Producto actualizado exitosamente.")
+            self.limpiar_entradas()
+            self.cargar_categorias()
+            self.cargar_tabla()
         except Exception as e:
             messagebox.showerror("❌ Error", f"No se pudo editar: {e}")

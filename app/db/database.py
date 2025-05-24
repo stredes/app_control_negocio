@@ -6,11 +6,45 @@ DB_PATH = Path(__file__).resolve().parent.parent / "data" / "negocio.db"
 def get_connection():
     return sqlite3.connect(DB_PATH)
 
+def migrar_proveedores_agregar_campos():
+    """
+    Añade las columnas razon_social, correo y comuna a proveedores
+    sin eliminar datos existentes.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    for col in ("razon_social", "correo", "comuna"):
+        try:
+            cur.execute(f"ALTER TABLE proveedores ADD COLUMN {col} TEXT;")
+        except sqlite3.OperationalError:
+            # La columna ya existe
+            pass
+    conn.commit()
+    conn.close()
+
+def migrar_compras_agregar_fecha():
+    """
+    Añade la columna fecha a la tabla compras sin eliminar datos existentes.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("ALTER TABLE compras ADD COLUMN fecha TEXT;")
+    except sqlite3.OperationalError:
+        # La columna ya existe
+        pass
+    conn.commit()
+    conn.close()
+
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Productos
+    # 1) Migraciones en caliente
+    migrar_proveedores_agregar_campos()
+    migrar_compras_agregar_fecha()
+
+    # 2) Crear tablas si no existen
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,8 +60,6 @@ def init_db():
             fecha_vencimiento TEXT
         )
     """)
-
-    # Clientes
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS clientes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,19 +69,18 @@ def init_db():
             telefono TEXT
         )
     """)
-
-    # Proveedores
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS proveedores (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
             rut TEXT,
             direccion TEXT,
-            telefono TEXT
+            telefono TEXT,
+            razon_social TEXT,
+            correo TEXT,
+            comuna TEXT
         )
     """)
-
-    # Compras
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS compras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,11 +89,10 @@ def init_db():
             cantidad INTEGER,
             precio_unitario REAL,
             iva REAL,
-            total REAL
+            total REAL,
+            fecha TEXT
         )
     """)
-
-    # Órdenes de Venta
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ordenes_venta (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,8 +105,6 @@ def init_db():
             fecha TEXT NOT NULL
         )
     """)
-
-    # Ingresos
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ingresos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,8 +115,6 @@ def init_db():
             fecha TEXT
         )
     """)
-
-    # Gastos
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS gastos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,8 +125,6 @@ def init_db():
             fecha TEXT
         )
     """)
-
-    # Facturas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS facturas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,31 +133,27 @@ def init_db():
             monto REAL,
             estado TEXT,
             fecha TEXT,
-            tipo TEXT -- 'cliente' o 'proveedor'
+            tipo TEXT
         )
     """)
-
-    # Categorías
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS categorias (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL UNIQUE
         )
     """)
-
-    # Movimientos de Inventario
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS movimientos_inventario (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             codigo_producto TEXT,
-            tipo TEXT,              -- entrada o salida
+            tipo TEXT,
             cantidad INTEGER,
             ubicacion TEXT,
-            metodo TEXT,            -- manual, escaner, orden_compra, etc.
+            metodo TEXT,
             fecha TEXT
         )
     """)
 
     conn.commit()
     conn.close()
-    print("✅ Base de datos inicializada con todas las tablas.")
+    print("✅ Base de datos inicializada y migraciones aplicadas.")
